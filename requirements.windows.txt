@@ -1,0 +1,3 @@
+# Windows uses the bundled libmagic DLL selected in requirements.txt.
+-r requirements.txt
+-c requirements.windows.lock.txt

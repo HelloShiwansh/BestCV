@@ -1,0 +1,25 @@
+.DS_Store
+
+# Local configuration and Python environment
+.env
+.env.*
+!.env.example
+**/.streamlit/secrets.toml
+.venv/
+venv/
+.runtime/
+.cache/
+.local/
+
+__pycache__/
+
+
+# Datasets
+*.csv
+
+# Logs
+*.log
+
+# ML models
+*.safetensors
+*.pkl
