@@ -1,25 +1,80 @@
-.DS_Store
-
-# Local configuration and Python environment
+# Credentials and local configuration
 .env
 .env.*
 !.env.example
 **/.streamlit/secrets.toml
+*.pem
+*.key
+
+# Python environments, bytecode, and build output
 .venv/
 venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Downloaded runtimes, model caches, and local previews
 .runtime/
 .cache/
 .local/
 
-__pycache__/
+# Local tests and test-tool output
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 
-
-# Datasets
+# Research datasets and generated model artifacts
+.ipynb_checkpoints/
+dataset/
+datasets/
 *.csv
-
-# Logs
-*.log
-
-# ML models
+*.tsv
+*.parquet
+*.npy
+*.npz
 *.safetensors
 *.pkl
+*.joblib
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# Runtime uploads, exports, databases, and logs
+uploads/
+reports/
+outputs/
+logs/
+*.log
+*.pid
+*.sqlite
+*.sqlite3
+*.db
+
+# Personal preparation notes (kept locally)
+/bestcv-interview-prep.md
+/bestcv-interview-prep.pdf
+
+# Editor, OS, and temporary files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*.tmp
+*.bak
+*~

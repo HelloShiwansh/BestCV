@@ -1,12 +1,13 @@
 [theme]
-primaryColor = "#4F46E5"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F8FAFC"
-textColor = "#1E293B"
+base = "light"
+primaryColor = "#7856B5"
+backgroundColor = "#FCFAFF"
+secondaryBackgroundColor = "#F1ECF9"
+textColor = "#30283F"
 font = "sans serif"
 
 [server]
-maxUploadSize = 10
+maxUploadSize = 5
 enableXsrfProtection = false
 enableCORS = false
 headless = true
@@ -15,5 +16,5 @@ headless = true
 gatherUsageStats = false
 
 [client]
-showSidebarNavigation = true
+showSidebarNavigation = false
 toolbarMode = "minimal"

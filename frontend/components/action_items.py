@@ -21,7 +21,14 @@ def _collect_action_items(analysis: Dict[str, Any]) -> List[Tuple[str, str, str]
             items.append(("medium", "General", suggestion))
 
     items.sort(key=lambda row: SEVERITY_RANK.get(row[0], 99))
-    return items
+    unique_items = []
+    seen = set()
+    for row in items:
+        normalized = " ".join(str(row[2]).casefold().split())
+        if normalized and normalized not in seen:
+            unique_items.append(row)
+            seen.add(normalized)
+    return unique_items
 
 
 def display_action_items(analysis: Dict[str, Any]) -> None:
@@ -29,9 +36,7 @@ def display_action_items(analysis: Dict[str, Any]) -> None:
     if not items:
         return
 
-    st.markdown("### ⚡ Action Items")
-    st.caption("Concrete steps to improve your score, sorted by urgency.")
+    st.markdown("### Next steps")
 
     for level, source, action in items:
-        icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(level, "🟢")
-        st.markdown(f"- {icon} **[{source}]** {action}")
+        st.markdown(f"- **{source}:** {action}" if source and source != "General" else f"- {action}")

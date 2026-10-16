@@ -2,6 +2,8 @@
 
 BestCV analyzes a PDF or DOCX resume, optionally compares it with a job description, and provides an ATS score and feedback. It uses a FastAPI backend, Streamlit frontend, spaCy, Sentence Transformers, Groq, and Supabase for accounts and saved analyses. Legacy `.doc` files must be converted to PDF or DOCX.
 
+The light-themed workspace opens directly to **Analyze resume**, with an optional job description and a separate sign-in dialog. Reviews are organized into **Overview**, **Keywords**, and **Improvements** tabs. **History** lets you reopen or delete a saved review.
+
 ## Windows setup
 
 Install **64-bit Python 3.11** and open PowerShell in the project folder. Run:

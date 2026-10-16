@@ -1,33 +1,33 @@
 from typing import Any, Dict, List
 import streamlit as st
 
+from frontend.components._helpers import unique_strings
+
 
 def display_strengths(strengths: List[str]) -> None:
-    st.markdown("### 💪 Strengths")
+    strengths = unique_strings(strengths)
     if not strengths:
-        st.info("Keep improving your resume to unlock strengths!")
         return
+    st.markdown("### What works well")
     for item in strengths:
         st.markdown(f"- {item}")
 
 
 def display_critical_issues(analysis: Dict[str, Any]) -> None:
-    critical = analysis.get("critical_issues") or []
-    summary = analysis.get("issues_summary") or []
+    critical = unique_strings(analysis.get("critical_issues") or [])
+    summary = unique_strings(analysis.get("issues_summary") or [])
 
     if not critical and not summary:
-        st.success("### ✅ No Critical Issues Found!")
-        st.markdown("Your resume doesn't have any urgent issues. Nice work.")
         return
 
-    st.markdown("### 🚨 Critical Issues")
-    st.error("These issues should be addressed first for better ATS performance.")
+    st.markdown("### Areas to improve")
 
     for item in critical:
         st.markdown(f"- {item}")
 
-    extra = [s for s in summary if s not in critical]
+    critical_labels = {item.casefold() for item in critical}
+    extra = [s for s in summary if s.casefold() not in critical_labels]
     if extra:
-        with st.expander("📋 Additional flagged items", expanded=False):
+        with st.expander("Additional feedback" if critical else "Feedback", expanded=not critical):
             for item in extra:
                 st.markdown(f"- {item}")

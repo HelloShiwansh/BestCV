@@ -1,177 +1,128 @@
-import streamlit as st
+"""BestCV's focused Streamlit workspace."""
 import sys
 from pathlib import Path
 
-# Put the repo root on sys.path so `from frontend.views import ...` resolves
-# regardless of the directory streamlit was launched from.
-sys.path.insert(0, str(Path(__file__).parent.parent))
+import streamlit as st
 
-# Configure page
-st.set_page_config(
-    page_title="ATS Resume Scorer",
-    page_icon="🎯",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+st.set_page_config(page_title="BestCV · Resume review", page_icon=":material/description:",
+                   layout="wide", initial_sidebar_state="auto")
 
-# Auth state. Populated by Supabase sign-in / sign-up / OAuth.
-# All four are None when signed out, all four are set when signed in.
-for key, default in [
-    ("access_token", None),
-    ("refresh_token", None),
-    ("user_id", None),       # Supabase auth user id (uuid); also used by api_client
-    ("user_email", None),
-    ("auth_error", None),
-    ("auth_info", None),
-]:
-    if key not in st.session_state:
-        st.session_state[key] = default
+from frontend.services import supabase_client
 
-# If we just came back from Google OAuth, Supabase appends `?code=<authcode>`
-# to the redirect URL. Exchange it for a session before rendering anything.
-if (
-    not st.session_state.access_token
-    and "code" in st.query_params
-):
-    from frontend.services import supabase_client
+AUTH_KEYS = ("access_token", "refresh_token", "user_id", "user_email")
+for key in AUTH_KEYS:
+    st.session_state.setdefault(key, None)
+st.session_state.setdefault("current_view", "scorer")
+if st.session_state.current_view not in ("scorer", "history"):
+    st.session_state.current_view = "scorer"
+
+css_path = Path(__file__).parent / "assets" / "styles.css"
+st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
+
+
+def _set_session(result):
+    for key in AUTH_KEYS:
+        st.session_state[key] = result.get("email" if key == "user_email" else key)
+
+
+def _sign_out():
+    supabase_client.sign_out()
+    for key in AUTH_KEYS:
+        st.session_state[key] = None
+    for key in ("scorer_analysis", "scorer_pdf_bytes", "scorer_filename", "scorer_show_results"):
+        st.session_state.pop(key, None)
+    st.session_state.current_view = "scorer"
+    st.rerun()
+
+
+@st.dialog("Welcome to BestCV")
+def _account_dialog():
+    st.caption("Sign in to analyze your resume and keep your reviews in one place.")
+    if supabase_client._missing_config():
+        st.info("Sign-in is not available yet. Complete the account setup to start analyzing resumes.")
+        return
+    sign_in, sign_up = st.tabs(["Sign in", "Create account"])
+    with sign_in:
+        with st.form("signin_form"):
+            email = st.text_input("Email", placeholder="you@example.com", key="signin_email")
+            password = st.text_input("Password", type="password", key="signin_pw")
+            submitted = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+        if submitted:
+            if not email.strip() or not password:
+                st.error("Enter your email and password.")
+            else:
+                result = supabase_client.sign_in_with_password(email.strip(), password)
+                if "error" in result:
+                    st.error(result["error"])
+                else:
+                    _set_session(result)
+                    st.rerun()
+    with sign_up:
+        with st.form("signup_form"):
+            email = st.text_input("Email", placeholder="you@example.com", key="signup_email")
+            password = st.text_input("Password", type="password", help="Use at least 6 characters.", key="signup_pw")
+            submitted = st.form_submit_button("Create account", type="primary", use_container_width=True)
+        if submitted:
+            if not email.strip() or len(password) < 6:
+                st.error("Enter your email and a password with at least 6 characters.")
+            else:
+                result = supabase_client.sign_up_with_password(email.strip(), password)
+                if "error" in result:
+                    st.error(result["error"])
+                elif result.get("pending_confirmation"):
+                    st.info("Check your inbox to confirm your email, then sign in.")
+                else:
+                    _set_session(result)
+                    st.rerun()
+    oauth = supabase_client.google_oauth_url()
+    if oauth.get("url"):
+        st.caption("Or continue with your Google account")
+        st.link_button("Continue with Google", oauth["url"], use_container_width=True)
+
+
+if not st.session_state.access_token and "code" in st.query_params:
     result = supabase_client.exchange_code_for_session(st.query_params["code"])
-
-    #Always clear the ?code= param so a refresh doesn't try to re-exchange.
     st.query_params.clear()
     if "error" in result:
-        st.session_state.auth_error = f"Google sign-in failed: {result['error']}"
+        st.session_state.auth_error = result["error"]
     else:
-        st.session_state.access_token  = result["access_token"]
-        st.session_state.refresh_token = result["refresh_token"]
-        st.session_state.user_id       = result["user_id"]
-        st.session_state.user_email    = result["email"]
+        _set_session(result)
         st.rerun()
 
-#Load custom CSS
-def load_css():
-    try:
-        css_path = Path(__file__).parent / 'assets' / 'styles.css'
-        with open(css_path, 'r') as f:
-            return f'<style>{f.read()}</style>'
-    except FileNotFoundError:
-        return ''
-
-st.markdown(load_css(), unsafe_allow_html=True)
-
-# Initialize session state for view management
-if 'current_view' not in st.session_state:
-    st.session_state.current_view = 'landing'
-
-# Sidebar navigation
 with st.sidebar:
-    st.markdown("## Navigation")
-    
-    if st.button("🏠 Home", use_container_width=True):
-        st.session_state.current_view = 'landing'
-        st.rerun()
-    
-    if st.button("🎯 ATS Scorer", use_container_width=True):
-        st.session_state.current_view = 'scorer'
-        st.rerun()
-    
-    if st.button("📊 History", use_container_width=True):
-        st.session_state.current_view = 'history'
-        st.rerun()
-    
-    if st.button("📚 Resources", use_container_width=True):
-        st.session_state.current_view = 'resources'
-        st.rerun()
-    
-    st.markdown("---")
-    st.markdown("### 👤 Account")
-
-    from frontend.services import supabase_client
-
-    if st.session_state.access_token:
-        # Signed-in state: show email + sign-out button.
-        st.caption(f"Signed in as **{st.session_state.user_email}**")
-        if st.button("Sign out", use_container_width=True):
-            supabase_client.sign_out()
-            for k in ("access_token", "refresh_token", "user_id", "user_email"):
-                st.session_state[k] = None
+    st.markdown('<div class="bc-brand" aria-label="BestCV">Best<span>CV</span></div>',
+                unsafe_allow_html=True)
+    st.markdown('<div class="bc-nav-label">WORKSPACE</div>', unsafe_allow_html=True)
+    for label, view, icon in (("Analyze resume", "scorer", ":material/description:"),
+                              ("History", "history", ":material/history:")):
+        if st.button(label, icon=icon, key=f"nav_{view}", use_container_width=True,
+                     type="primary" if st.session_state.current_view == view else "secondary"):
+            st.session_state.current_view = view
             st.rerun()
-    else:
-        # Signed-out state: tabs for sign-in vs sign-up + Google OAuth button.
-        if st.session_state.auth_error:
-            st.error(st.session_state.auth_error)
-            st.session_state.auth_error = None
-        if st.session_state.auth_info:
-            st.info(st.session_state.auth_info)
-            st.session_state.auth_info = None
 
-        tab_in, tab_up = st.tabs(["Sign in", "Sign up"])
+breadcrumb, account = st.columns([6, 1.4], vertical_alignment="center")
+with breadcrumb:
+    current = "Resume review" if st.session_state.current_view == "scorer" else "History"
+    st.markdown(f'<div class="bc-topline">Workspace <span>/</span> <strong>{current}</strong></div>', unsafe_allow_html=True)
+with account:
+    if st.session_state.access_token:
+        with st.popover("Account", icon=":material/person:", use_container_width=True):
+            st.caption(st.session_state.user_email or "Signed in")
+            if st.button("Sign out", use_container_width=True):
+                _sign_out()
+    elif st.button("Sign in", icon=":material/login:", use_container_width=True, key="open_account"):
+        _account_dialog()
 
-        with tab_in:
-            with st.form("signin_form", clear_on_submit=False):
-                email = st.text_input("Email", key="signin_email")
-                password = st.text_input("Password", type="password", key="signin_pw")
-                submitted = st.form_submit_button("Sign in", use_container_width=True)
-            if submitted:
-                result = supabase_client.sign_in_with_password(email, password)
-                if "error" in result:
-                    st.session_state.auth_error = result["error"]
-                else:
-                    st.session_state.access_token  = result["access_token"]
-                    st.session_state.refresh_token = result["refresh_token"]
-                    st.session_state.user_id       = result["user_id"]
-                    st.session_state.user_email    = result["email"]
-                st.rerun()
+if st.session_state.pop("auth_error", None):
+    st.error("We could not complete sign-in. Please try again.")
 
-        with tab_up:
-            with st.form("signup_form", clear_on_submit=False):
-                email_up = st.text_input("Email", key="signup_email")
-                password_up = st.text_input("Password (min 6 chars)", type="password", key="signup_pw")
-                submitted_up = st.form_submit_button("Create account", use_container_width=True)
-            if submitted_up:
-                result = supabase_client.sign_up_with_password(email_up, password_up)
-                if "error" in result:
-                    st.session_state.auth_error = result["error"]
-                elif result.get("pending_confirmation"):
-                    st.session_state.auth_info = (
-                        f"Check your inbox — confirmation email sent to {result['email']}."
-                    )
-                else:
-                    st.session_state.access_token  = result["access_token"]
-                    st.session_state.refresh_token = result["refresh_token"]
-                    st.session_state.user_id       = result["user_id"]
-                    st.session_state.user_email    = result["email"]
-                st.rerun()
-
-        st.markdown("<div style='text-align:center; margin: 8px 0; color:#94a3b8;'>or</div>",
-                    unsafe_allow_html=True)
-
-        oauth = supabase_client.google_oauth_url()
-        if "error" in oauth:
-            st.caption(f"Google sign-in unavailable: {oauth['error']}")
-        else:
-            st.link_button(
-                "Continue with Google",
-                url=oauth["url"],
-                use_container_width=True,
-            )
-
-# Main content area - render based on current view
-if st.session_state.current_view == 'landing':
-    # Import and render landing page
-    from frontend.views import landing
-    landing.render()
-
-elif st.session_state.current_view == 'scorer':
-    # Import and render scorer page
+if st.session_state.current_view == "history":
+    from frontend.views import history
+    history.render()
+else:
     from frontend.views import scorer
     scorer.render()
 
-elif st.session_state.current_view == 'history':
-    # Import and render history page
-    from frontend.views import history
-    history.render()
-
-elif st.session_state.current_view == 'resources':
-    # Import and render resources page
-    from frontend.views import resources
-    resources.render()
+if st.session_state.pop("show_auth_dialog", False):
+    _account_dialog()

@@ -1,5 +1,3 @@
-"""Views package for single-page app architecture"""
+"""The two essential workspace views."""
 
-from . import landing, scorer, history, resources
-
-__all__ = ['landing', 'scorer', 'history', 'resources']
+__all__ = ["scorer", "history"]
